@@ -83,6 +83,7 @@ const ui = {
   timer: $('#timer'),
   deckCount: $('#deckCount'),
   currentCard: $('#currentCard'),
+  currentCardSubtitle: $('#currentCardSubtitle'),
   score3Btn: $('#score3Btn'),
   score1Btn: $('#score1Btn'),
   penaltyBtn: $('#penaltyBtn'),
@@ -194,11 +195,13 @@ actor.subscribe((state) => {
 
   // Update current card
   if (context.currentCard) {
-    ui.currentCard.textContent = context.currentCard.word3;
+    ui.currentCard.textContent = context.currentCard.word1;
+    ui.currentCardSubtitle.textContent = context.currentCard.word3;
     ui.score3Btn.textContent = context.currentCard.word3 + ' (+3)';
     ui.score1Btn.textContent = context.currentCard.word1 + ' (+1)';
   } else {
     ui.currentCard.textContent = 'No more cards!';
+    ui.currentCardSubtitle.textContent = '';
     ui.score3Btn.textContent = 'Loading... (+3)';
     ui.score1Btn.textContent = 'Loading... (+1)';
   }
