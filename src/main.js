@@ -7,33 +7,39 @@ let pfnCards = [];
 
 // Sample Poetry for Neanderthals cards
 const sampleCards = [
-  { id: "1", easy: "Quiz", hard: "Pop Quiz" },
-  { id: "2", easy: "Side", hard: "Bedside" },
-  { id: "3", easy: "Love", hard: "Love Letter" },
-  { id: "4", easy: "Mind", hard: "Mind Reader" },
-  { id: "5", easy: "Tongue", hard: "Tongue-Tied" },
-  { id: "6", easy: "Skin", hard: "Snake Skin" },
-  { id: "7", easy: "Hair", hard: "Bad Hair Day" },
-  { id: "8", easy: "Split", hard: "Split Ends" },
-  { id: "9", easy: "Talk", hard: "Talk Radio" },
-  { id: "10", easy: "Ghost", hard: "Ghost Town" },
-  { id: "11", easy: "Fence", hard: "Electric Fence" },
-  { id: "12", easy: "Window", hard: "Window Shopping" },
-  { id: "13", easy: "Taco", hard: "Taco Salad" },
-  { id: "14", easy: "Wedding", hard: "Wedding Ring" },
-  { id: "15", easy: "Tape", hard: "Tape Recorder" },
-  { id: "16", easy: "Fall", hard: "Trust Fall" },
-  { id: "17", easy: "Wife", hard: "Trophy Wife" },
-  { id: "18", easy: "Toilet", hard: "Toilet Paper" },
-  { id: "19", easy: "Sun", hard: "Sunburn" },
-  { id: "20", easy: "Golf", hard: "Mini Golf" }
+  { id: "1", word1: "Quiz", word3: "Pop Quiz" },
+  { id: "2", word1: "Side", word3: "Bedside" },
+  { id: "3", word1: "Love", word3: "Love Letter" },
+  { id: "4", word1: "Mind", word3: "Mind Reader" },
+  { id: "5", word1: "Tongue", word3: "Tongue-Tied" },
+  { id: "6", word1: "Skin", word3: "Snake Skin" },
+  { id: "7", word1: "Hair", word3: "Bad Hair Day" },
+  { id: "8", word1: "Split", word3: "Split Ends" },
+  { id: "9", word1: "Talk", word3: "Talk Radio" },
+  { id: "10", word1: "Ghost", word3: "Ghost Town" },
+  { id: "11", word1: "Fence", word3: "Electric Fence" },
+  { id: "12", word1: "Window", word3: "Window Shopping" },
+  { id: "13", word1: "Taco", word3: "Taco Salad" },
+  { id: "14", word1: "Wedding", word3: "Wedding Ring" },
+  { id: "15", word1: "Tape", word3: "Tape Recorder" },
+  { id: "16", word1: "Fall", word3: "Trust Fall" },
+  { id: "17", word1: "Wife", word3: "Trophy Wife" },
+  { id: "18", word1: "Toilet", word3: "Toilet Paper" },
+  { id: "19", word1: "Sun", word3: "Sunburn" },
+  { id: "20", word1: "Golf", word3: "Mini Golf" }
 ];
 
 // Load the JSON file
 async function loadCardData() {
   try {
     const response = await fetch('./data/pfn_cards.json');
-    pfnCards = await response.json();
+    const rawCards = await response.json();
+    // Transform the card data to match the expected format
+    pfnCards = rawCards.map((card, index) => ({
+      id: (index + 1).toString(),
+      word3: card.hard,
+      word1: card.easy
+    }));
   } catch (error) {
     console.error('Failed to load card data:', error);
     // Fallback to sample cards
@@ -46,12 +52,7 @@ function getAllCards() {
   return pfnCards;
 }
 
-function getCardsByCategory(category) {
-  if (category === 'all') return pfnCards;
-  
-  // For now, just return all cards. You can implement category filtering later
-  return pfnCards;
-}
+
 
 function getRandomCards(count = 20) {
   const shuffled = [...pfnCards].sort(() => 0.5 - Math.random());
@@ -68,7 +69,6 @@ const ui = {
   team1Name: $('#team1Name'),
   team2Name: $('#team2Name'),
   secondsInput: $('#secondsInput'),
-  cardCategory: $('#cardCategory'),
   deckSizeInput: $('#deckSizeInput'),
   startGameBtn: $('#startGameBtn'),
 
@@ -117,8 +117,9 @@ ui.startGameBtn.addEventListener('click', () => {
   const team1Name = ui.team1Name.value.trim() || 'Team 1';
   const team2Name = ui.team2Name.value.trim() || 'Team 2';
   const seconds = parseInt(ui.secondsInput.value) || 60;
-  const category = ui.cardCategory.value;
   const deckSize = parseInt(ui.deckSizeInput.value) || 20;
+
+  console.log('Starting game with:', { team1Name, team2Name, seconds, deckSize });
 
   // Add teams
   actor.send({ type: 'ADD_TEAM', id: 'team1', name: team1Name });
@@ -128,10 +129,12 @@ ui.startGameBtn.addEventListener('click', () => {
   actor.send({ type: 'SET_SECONDS', seconds });
 
   // Set cards
-  const cards = getCardsByCategory(category).slice(0, deckSize);
+  const cards = getAllCards().slice(0, deckSize);
+  console.log('Setting cards:', cards.length, 'cards');
   actor.send({ type: 'SET_CARDS', cards });
 
   // Start game
+  console.log('Sending START_GAME event');
   actor.send({ type: 'START_GAME' });
 });
 
@@ -166,6 +169,7 @@ ui.resetBtn.addEventListener('click', () => {
 // ------- State subscriptions -------
 actor.subscribe((state) => {
   const { context, value } = state;
+  console.log('State changed:', { value, teams: context.teams.length, cards: context.allCards.length, valueType: typeof value });
   
   // Update team displays
   if (context.teams.length >= 1) {
@@ -190,9 +194,9 @@ actor.subscribe((state) => {
 
   // Update current card
   if (context.currentCard) {
-    ui.currentCard.textContent = context.currentCard.hard;
-    ui.score3Btn.textContent = context.currentCard.hard + ' (+3)';
-    ui.score1Btn.textContent = context.currentCard.easy + ' (+1)';
+    ui.currentCard.textContent = context.currentCard.word3;
+    ui.score3Btn.textContent = context.currentCard.word3 + ' (+3)';
+    ui.score1Btn.textContent = context.currentCard.word1 + ' (+1)';
   } else {
     ui.currentCard.textContent = 'No more cards!';
     ui.score3Btn.textContent = 'Loading... (+3)';
@@ -250,7 +254,7 @@ actor.subscribe((state) => {
 
   if (value === 'lobby') {
     ui.viewLobby.classList.add('active');
-  } else if (value === 'turn') {
+  } else if (value === 'turn' || (typeof value === 'object' && value.turn)) {
     ui.viewTurn.classList.add('active');
   } else if (value === 'gameOver') {
     ui.viewGameOver.classList.add('active');
