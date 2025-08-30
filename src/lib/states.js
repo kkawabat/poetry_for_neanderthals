@@ -208,7 +208,7 @@ export const pfnMachine = setup({
         
         // when a turn ends, check if all players have gone
         turnEnd: {
-          entry: ['nextPlayer', 'resetTurnTimer'],
+          entry: ['nextPlayer'],
           always: [
             { guard: 'allPlayersDone', target: '#pfn.betweenRounds' },
             { target: 'handoff' }
