@@ -259,7 +259,7 @@ actor.subscribe((state) => {
 
   if (value === 'lobby') {
     ui.viewLobby.classList.add('active');
-  } else if (value === 'turn' || (typeof value === 'object' && value.turn)) {
+  } else if (value === 'turn' || (typeof value === 'object' && value.turn && value.turn !== 'handoff')) {
     ui.viewTurn.classList.add('active');
   } else if (value === 'gameOver') {
     ui.viewGameOver.classList.add('active');
