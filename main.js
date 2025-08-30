@@ -170,7 +170,7 @@ ui.resetBtn.addEventListener('click', () => {
 // ------- State subscriptions -------
 actor.subscribe((state) => {
   const { context, value } = state;
-  console.log('State changed:', { value, teams: context.teams.length, cards: context.allCards.length, valueType: typeof value });
+  console.log('State changed:', { value, teams: context.teams.length, cards: context.allCards.length, valueType: typeof value, remainingSeconds: context.remainingSeconds });
   
   // Update team displays
   if (context.teams.length >= 1) {
@@ -254,6 +254,8 @@ actor.subscribe((state) => {
     const view = $(`#${viewId}`);
     view.classList.remove('active');
   });
+
+  console.log('View switching logic:', { value, isLobby: value === 'lobby', isTurn: value === 'turn' || (typeof value === 'object' && value.turn), isHandoff: typeof value === 'object' && value.turn === 'handoff', isBetweenRounds: value === 'betweenRounds', isGameOver: value === 'gameOver' });
 
   if (value === 'lobby') {
     ui.viewLobby.classList.add('active');
