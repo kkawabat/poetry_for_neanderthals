@@ -2,9 +2,6 @@
 import { createActor } from 'https://esm.sh/xstate@5?bundle';
 import { pfnMachine } from './lib/states.js';
 
-// Load card data
-let pfnCards = sampleCards; // Initialize with sample cards as fallback
-
 // Sample Poetry for Neanderthals cards
 const sampleCards = [
   { id: "1", word1: "Quiz", word3: "Pop Quiz" },
@@ -28,6 +25,9 @@ const sampleCards = [
   { id: "19", word1: "Sun", word3: "Sunburn" },
   { id: "20", word1: "Golf", word3: "Mini Golf" }
 ];
+
+// Load card data
+let pfnCards = sampleCards; // Initialize with sample cards as fallback
 
 // Load the JSON file
 async function loadCardData() {
