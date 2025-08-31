@@ -108,19 +108,8 @@ const ui = {
 const actor = createActor(pfnMachine);
 
 // ------- Event handlers -------
-// Check if all required UI elements exist
-const requiredElements = [
-  'startGameBtn', 'scoreBtn', 'skipBtn', 'penaltyBtn', 'pauseBtn',
-  'handoffStartBtn', 'endGameBtn', 'resetBtn'
-];
-
-const missingElements = requiredElements.filter(id => !ui[id]);
-if (missingElements.length > 0) {
-  console.error('Missing UI elements:', missingElements);
-  return;
-}
-
-ui.startGameBtn.addEventListener('click', () => {
+function initializeEventHandlers() {
+  ui.startGameBtn.addEventListener('click', () => {
   const team1Name = ui.team1Name.value.trim() || 'Team 1';
   const team2Name = ui.team2Name.value.trim() || 'Team 2';
   const seconds = parseInt(ui.secondsInput.value) || 60;
@@ -180,6 +169,7 @@ ui.endGameBtn.addEventListener('click', () => {
 ui.resetBtn.addEventListener('click', () => {
   actor.send({ type: 'RESET' });
 });
+}
 
 // ------- State subscriptions -------
 actor.subscribe((state) => {
@@ -280,6 +270,7 @@ actor.subscribe((state) => {
 
 // ------- Initialize -------
 document.addEventListener('DOMContentLoaded', () => {
+  initializeEventHandlers();
   loadCardData().then(() => {
     actor.start();
   });
