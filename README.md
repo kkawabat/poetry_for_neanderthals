@@ -2,6 +2,8 @@
 
 A web-based implementation of the Poetry for Neanderthals card game, adapted from the Moniker template.
 
+**🎮 [Play the game online](https://kkawabat.github.io/poetry_for_neanderthals/)**
+
 ## How to Play
 
 Poetry for Neanderthals is a team-based word-guessing game where players take turns describing cards to their teammates.
