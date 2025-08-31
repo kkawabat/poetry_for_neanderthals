@@ -38,8 +38,9 @@ const guessCard = (ctx) => {
 
 const skipCard = (ctx) => {
   if (!ctx.currentCard) return ctx;
-  // Don't put the card back in the deck - just discard it
-  return { ...ctx, currentCard: null };
+  const deck = ctx.roundDeck.slice();
+  deck.push(ctx.currentCard);
+  return { ...ctx, currentCard: null, roundDeck: deck };
 };
 
 const applyPenalty = (ctx) => {
@@ -102,6 +103,7 @@ export const pfnMachine = setup({
       | { type:'END_TURN' }
       | { type:'TICK', remaining:number }
       | { type:'TIME_UP' }
+      | { type:'END_GAME' }
       | { type:'RESET' }
     )} */ ({}),
   },
@@ -223,7 +225,8 @@ export const pfnMachine = setup({
             TOGGLE_PAUSE: { 
               actions: 'togglePause',
               // Restart the timer actor to pick up the new pause state
-              target: 'playing'
+              target: 'playing',
+              internal: false
             },
             END_TURN: { target: 'turnEnd' },
           },
@@ -232,7 +235,7 @@ export const pfnMachine = setup({
         
         // when a turn ends, check if all players have gone
         turnEnd: {
-          entry: ['nextPlayer'],
+          entry: ['nextPlayer', 'shuffleDeckForNextTurn'],
           always: [
             { guard: 'allPlayersDone', target: '#pfn.betweenRounds' },
             { target: 'handoff' }
@@ -241,10 +244,13 @@ export const pfnMachine = setup({
         
         // handoff waits for the next player to tap "Start Turn"
         handoff: {
-          entry: ['shuffleDeckForNextTurn'],
           on: {
             START_TURN: { target: 'prepare' },
+            END_GAME: { target: '#pfn.gameOver' },
           },
+          always: [
+            { guard: 'roundDeckEmpty', target: '#pfn.gameOver' }
+          ],
         },
       },
     },

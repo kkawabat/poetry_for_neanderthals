@@ -94,6 +94,7 @@ const ui = {
   handoffTeam: $('#handoffTeam'),
   handoffDeckCount: $('#handoffDeckCount'),
   handoffStartBtn: $('#handoffStartBtn'),
+  endGameBtn: $('#endGameBtn'),
 
   // between rounds
   viewBetweenRounds: $('#viewBetweenRounds'),
@@ -157,6 +158,10 @@ ui.pauseBtn.addEventListener('click', () => {
 
 ui.handoffStartBtn.addEventListener('click', () => {
   actor.send({ type: 'START_TURN' });
+});
+
+ui.endGameBtn.addEventListener('click', () => {
+  actor.send({ type: 'END_GAME' });
 });
 
 ui.betweenStartBtn.addEventListener('click', () => {
