@@ -17,27 +17,34 @@ const drawNextCard = (ctx) => {
   if (ctx.currentCard) return ctx;
   const deck = ctx.roundDeck.slice();
   const next = deck.shift() || null;
-  return { ...ctx, currentCard: next, roundDeck: deck };
+  return { ...ctx, currentCard: next, currentCardScored: false, roundDeck: deck };
 };
 
-const guessCard = (ctx, points = 3) => {
+const guessCard = (ctx) => {
   if (!ctx.currentCard) return ctx;
   const card = ctx.currentCard;
   const i = ctx.currentTeamIndex;
-  const teams = ctx.teams.map((t, idx) => idx === i ? { ...t, score: t.score + points } : t);
-  return { ...ctx, teams, currentCard: null, roundWon: [...ctx.roundWon, card] };
+  
+  if (!ctx.currentCardScored) {
+    // First click: +1 point, don't move to next card
+    const teams = ctx.teams.map((t, idx) => idx === i ? { ...t, score: t.score + 1 } : t);
+    return { ...ctx, teams, currentCardScored: true };
+  } else {
+    // Second click: +2 more points, move to next card
+    const teams = ctx.teams.map((t, idx) => idx === i ? { ...t, score: t.score + 2 } : t);
+    return { ...ctx, teams, currentCard: null, currentCardScored: false, roundWon: [...ctx.roundWon, card] };
+  }
 };
 
 const skipCard = (ctx) => {
   if (!ctx.currentCard) return ctx;
-  const deck = ctx.roundDeck.slice();
-  deck.push(ctx.currentCard);
-  return { ...ctx, currentCard: null, roundDeck: deck };
+  // Don't put the card back in the deck - just discard it
+  return { ...ctx, currentCard: null };
 };
 
 const applyPenalty = (ctx) => {
   const i = ctx.currentTeamIndex;
-  const teams = ctx.teams.map((t, idx) => idx === i ? { ...t, score: Math.max(0, t.score - 1) } : t);
+  const teams = ctx.teams.map((t, idx) => idx === i ? { ...t, score: t.score - 1 } : t);
   return { ...ctx, teams };
 };
 
@@ -73,6 +80,7 @@ export const pfnMachine = setup({
       roundWon: {id:string, word3:string, word1:string}[],
       currentTeamIndex: number,
       currentCard: {id:string, word3:string, word1:string} | null,
+      currentCardScored: boolean,
       turnSeconds: number,
       remainingSeconds: number,
       currentPlayerIndex: number,
@@ -129,8 +137,7 @@ export const pfnMachine = setup({
       context.currentPlayerIndex = 0;
     },
     drawCard: ({ context }) => Object.assign(context, drawNextCard(context)),
-    onGuess3: ({ context }) => Object.assign(context, guessCard(context, 3)),
-    onGuess1: ({ context }) => Object.assign(context, guessCard(context, 1)),
+    onGuess: ({ context }) => Object.assign(context, guessCard(context)),
     onSkip: ({ context }) => Object.assign(context, skipCard(context)),
     onPenalty: ({ context }) => Object.assign(context, applyPenalty(context)),
     togglePause: ({ context }) => { context.isPaused = !context.isPaused; },
@@ -167,6 +174,7 @@ export const pfnMachine = setup({
       roundWon: [],
       currentTeamIndex: 0,
       currentCard: null,
+      currentCardScored: false,
       turnSeconds: DEFAULT_SECONDS,
       remainingSeconds: DEFAULT_SECONDS,
       currentPlayerIndex: 0,
@@ -209,8 +217,7 @@ export const pfnMachine = setup({
             TICK: { actions: 'updateRemaining' },
             TIME_UP: { target: 'turnEnd' },
             NEXT_CARD: { actions: 'drawCard' },
-            GUESS_3: [{ actions: ['onGuess3', 'drawCard'] }],
-            GUESS_1: [{ actions: ['onGuess1', 'drawCard'] }],
+            GUESS_1: [{ actions: ['onGuess', 'drawCard'] }],
             SKIP: { actions: ['onSkip', 'drawCard'] },
             PENALTY: { actions: 'onPenalty' },
             TOGGLE_PAUSE: { 

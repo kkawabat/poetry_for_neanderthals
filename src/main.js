@@ -84,8 +84,8 @@ const ui = {
   deckCount: $('#deckCount'),
   currentCard: $('#currentCard'),
   currentCardSubtitle: $('#currentCardSubtitle'),
-  score3Btn: $('#score3Btn'),
-  score1Btn: $('#score1Btn'),
+  scoreBtn: $('#scoreBtn'),
+  skipBtn: $('#skipBtn'),
   penaltyBtn: $('#penaltyBtn'),
   pauseBtn: $('#pauseBtn'),
 
@@ -139,12 +139,12 @@ ui.startGameBtn.addEventListener('click', () => {
   actor.send({ type: 'START_GAME' });
 });
 
-ui.score3Btn.addEventListener('click', () => {
-  actor.send({ type: 'GUESS_3' });
+ui.scoreBtn.addEventListener('click', () => {
+  actor.send({ type: 'GUESS_1' });
 });
 
-ui.score1Btn.addEventListener('click', () => {
-  actor.send({ type: 'GUESS_1' });
+ui.skipBtn.addEventListener('click', () => {
+  actor.send({ type: 'SKIP' });
 });
 
 ui.penaltyBtn.addEventListener('click', () => {
@@ -197,13 +197,18 @@ actor.subscribe((state) => {
   if (context.currentCard) {
     ui.currentCard.textContent = context.currentCard.word1;
     ui.currentCardSubtitle.textContent = context.currentCard.word3;
-    ui.score3Btn.textContent = context.currentCard.word3 + ' (+3)';
-    ui.score1Btn.textContent = context.currentCard.word1 + ' (+1)';
+    if (context.currentCardScored) {
+      ui.scoreBtn.textContent = context.currentCard.word3 + ' (+2)';
+      ui.scoreBtn.className = 'score-btn score-3';
+    } else {
+      ui.scoreBtn.textContent = context.currentCard.word1 + ' (+1)';
+      ui.scoreBtn.className = 'score-btn score-1';
+    }
   } else {
     ui.currentCard.textContent = 'No more cards!';
     ui.currentCardSubtitle.textContent = '';
-    ui.score3Btn.textContent = 'Loading... (+3)';
-    ui.score1Btn.textContent = 'Loading... (+1)';
+    ui.scoreBtn.textContent = 'Loading... (+1)';
+    ui.scoreBtn.className = 'score-btn score-1';
   }
 
   // Update pause button
