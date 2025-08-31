@@ -58,22 +58,43 @@ const applyPenalty = (ctx) => {
 
 const nextTeamIndex = (ctx) => (ctx.currentTeamIndex + 1) % ctx.teams.length;
 
-// simple timer actor
-const timerActor = fromCallback(({ input, sendBack }) => {
+// timer actor that can be paused/resumed
+const timerActor = fromCallback(({ input, sendBack, self }) => {
   let remaining = input.seconds;
+  let isPaused = false;
+  let intervalId = null;
+  
+  const startTimer = () => {
+    if (intervalId) clearInterval(intervalId);
+    intervalId = setInterval(() => {
+      if (!isPaused) {
+        remaining -= 1;
+        sendBack({ type: 'TICK', remaining });
+        if (remaining <= 0) {
+          clearInterval(intervalId);
+          sendBack({ type: 'TIME_UP' });
+        }
+      }
+    }, 1000);
+  };
+  
+  // Listen for pause/unpause events
+  self.subscribe((state) => {
+    if (state.event.type === 'TOGGLE_PAUSE') {
+      isPaused = !isPaused;
+      if (!isPaused && !intervalId) {
+        // Resume timer if it was stopped
+        startTimer();
+      }
+    }
+  });
   
   sendBack({ type: 'TICK', remaining });
+  startTimer();
   
-  const id = setInterval(() => {
-    remaining -= 1;
-    sendBack({ type: 'TICK', remaining });
-    if (remaining <= 0) {
-      clearInterval(id);
-      sendBack({ type: 'TIME_UP' });
-    }
-  }, 1000);
-  
-  return () => clearInterval(id);
+  return () => {
+    if (intervalId) clearInterval(intervalId);
+  };
 });
 
 export const pfnMachine = setup({
@@ -226,8 +247,7 @@ export const pfnMachine = setup({
             SKIP: { actions: ['onSkip', 'drawCard'] },
             PENALTY: { actions: 'onPenalty' },
             TOGGLE_PAUSE: { 
-              actions: 'togglePause',
-              target: 'playing'
+              actions: 'togglePause'
             },
             END_TURN: { target: 'turnEnd' },
           },
