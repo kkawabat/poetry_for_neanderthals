@@ -38,9 +38,16 @@ const guessCard = (ctx) => {
 
 const skipCard = (ctx) => {
   if (!ctx.currentCard) return ctx;
-  const deck = ctx.roundDeck.slice();
-  deck.push(ctx.currentCard);
-  return { ...ctx, currentCard: null, roundDeck: deck };
+  
+  if (ctx.currentCardScored) {
+    // If card was partially scored (+1), remove it from deck permanently
+    return { ...ctx, currentCard: null };
+  } else {
+    // If card wasn't scored, put it back in deck
+    const deck = ctx.roundDeck.slice();
+    deck.push(ctx.currentCard);
+    return { ...ctx, currentCard: null, roundDeck: deck };
+  }
 };
 
 const applyPenalty = (ctx) => {
@@ -217,7 +224,7 @@ export const pfnMachine = setup({
           },
           on: {
             TICK: { actions: 'updateRemaining' },
-            TIME_UP: { target: 'turnEnd' },
+            TIME_UP: { actions: ['onSkip', 'drawCard'], target: 'turnEnd' },
             NEXT_CARD: { actions: 'drawCard' },
             GUESS_1: [{ actions: ['onGuess', 'drawCard'] }],
             SKIP: { actions: ['onSkip', 'drawCard'] },
