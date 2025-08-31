@@ -96,14 +96,7 @@ const ui = {
   handoffStartBtn: $('#handoffStartBtn'),
   endGameBtn: $('#endGameBtn'),
 
-  // between rounds
-  viewBetweenRounds: $('#viewBetweenRounds'),
-  betweenTeam1Name: $('#betweenTeam1Name'),
-  betweenTeam2Name: $('#betweenTeam2Name'),
-  betweenTeam1Score: $('#betweenTeam1Score'),
-  betweenTeam2Score: $('#betweenTeam2Score'),
-  betweenDeckCount: $('#betweenDeckCount'),
-  betweenStartBtn: $('#betweenStartBtn'),
+
 
   // game over
   viewGameOver: $('#viewGameOver'),
@@ -164,9 +157,7 @@ ui.endGameBtn.addEventListener('click', () => {
   actor.send({ type: 'END_GAME' });
 });
 
-ui.betweenStartBtn.addEventListener('click', () => {
-  actor.send({ type: 'START_TURN' });
-});
+
 
 ui.resetBtn.addEventListener('click', () => {
   actor.send({ type: 'RESET' });
@@ -226,16 +217,7 @@ actor.subscribe((state) => {
   }
   ui.handoffDeckCount.textContent = totalCards;
 
-  // Update between rounds info
-  if (context.teams.length >= 1) {
-    ui.betweenTeam1Name.textContent = context.teams[0].name;
-    ui.betweenTeam1Score.textContent = context.teams[0].score;
-  }
-  if (context.teams.length >= 2) {
-    ui.betweenTeam2Name.textContent = context.teams[1].name;
-    ui.betweenTeam2Score.textContent = context.teams[1].score;
-  }
-  ui.betweenDeckCount.textContent = totalCards;
+
 
   // Update final scores
   if (context.teams.length >= 2) {
@@ -259,13 +241,13 @@ actor.subscribe((state) => {
   }
 
   // Show/hide views based on state
-  const views = ['viewLobby', 'viewTurn', 'viewHandoff', 'viewBetweenRounds', 'viewGameOver'];
+  const views = ['viewLobby', 'viewTurn', 'viewHandoff', 'viewGameOver'];
   views.forEach(viewId => {
     const view = $(`#${viewId}`);
     view.classList.remove('active');
   });
 
-  console.log('View switching logic:', { value, isLobby: value === 'lobby', isTurn: value === 'turn' || (typeof value === 'object' && value.turn), isHandoff: typeof value === 'object' && value.turn === 'handoff', isBetweenRounds: value === 'betweenRounds', isGameOver: value === 'gameOver' });
+  console.log('View switching logic:', { value, isLobby: value === 'lobby', isTurn: value === 'turn' || (typeof value === 'object' && value.turn && value.turn !== 'handoff'), isHandoff: typeof value === 'object' && value.turn === 'handoff', isGameOver: value === 'gameOver' });
 
   if (value === 'lobby') {
     ui.viewLobby.classList.add('active');
@@ -275,8 +257,6 @@ actor.subscribe((state) => {
     ui.viewGameOver.classList.add('active');
   } else if (typeof value === 'object' && value.turn === 'handoff') {
     ui.viewHandoff.classList.add('active');
-  } else if (value === 'betweenRounds') {
-    ui.viewBetweenRounds.classList.add('active');
   }
 });
 
