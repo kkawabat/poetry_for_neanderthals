@@ -61,18 +61,15 @@ const nextTeamIndex = (ctx) => (ctx.currentTeamIndex + 1) % ctx.teams.length;
 // simple timer actor
 const timerActor = fromCallback(({ input, sendBack }) => {
   let remaining = input.seconds;
-  let isPaused = input.isPaused || false;
   
   sendBack({ type: 'TICK', remaining });
   
   const id = setInterval(() => {
-    if (!isPaused) {
-      remaining -= 1;
-      sendBack({ type: 'TICK', remaining });
-      if (remaining <= 0) {
-        clearInterval(id);
-        sendBack({ type: 'TIME_UP' });
-      }
+    remaining -= 1;
+    sendBack({ type: 'TICK', remaining });
+    if (remaining <= 0) {
+      clearInterval(id);
+      sendBack({ type: 'TIME_UP' });
     }
   }, 1000);
   
@@ -218,8 +215,7 @@ export const pfnMachine = setup({
           invoke: { 
             src: 'turnTimer', 
             input: ({ context }) => ({ 
-              seconds: context.remainingSeconds,
-              isPaused: context.isPaused 
+              seconds: context.remainingSeconds
             }) 
           },
           on: {
@@ -231,22 +227,17 @@ export const pfnMachine = setup({
             PENALTY: { actions: 'onPenalty' },
             TOGGLE_PAUSE: { 
               actions: 'togglePause',
-              // Restart the timer actor to pick up the new pause state
-              target: 'playing',
-              internal: false
+              target: 'playing'
             },
             END_TURN: { target: 'turnEnd' },
           },
           always: { guard: 'roundDeckEmpty', target: 'turnEnd' },
         },
         
-        // when a turn ends, check if all players have gone
+        // when a turn ends, switch to next team
         turnEnd: {
           entry: ['nextPlayer', 'shuffleDeckForNextTurn'],
-          always: [
-            { guard: 'allPlayersDone', target: '#pfn.betweenRounds' },
-            { target: 'handoff' }
-          ],
+          always: { target: 'handoff' },
         },
         
         // handoff waits for the next player to tap "Start Turn"
@@ -261,13 +252,7 @@ export const pfnMachine = setup({
         },
       },
     },
-    betweenRounds: {
-      id: 'betweenRounds',
-      on: { 
-        START_TURN: { target: 'turn.prepare', actions: ['initRoundDeck', 'resetTurnTimer'] },
-        RESET: { target: 'lobby', actions: 'resetGame' }
-      },
-    },
+
     gameOver: {
       id: 'gameOver',
       on: { RESET: { target: 'lobby', actions: 'resetGame' } },
