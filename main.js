@@ -3,7 +3,7 @@ import { createActor } from 'https://esm.sh/xstate@5?bundle';
 import { pfnMachine } from './lib/states.js';
 
 // Load card data
-let pfnCards = [];
+let pfnCards = sampleCards; // Initialize with sample cards as fallback
 
 // Sample Poetry for Neanderthals cards
 const sampleCards = [
@@ -108,6 +108,18 @@ const ui = {
 const actor = createActor(pfnMachine);
 
 // ------- Event handlers -------
+// Check if all required UI elements exist
+const requiredElements = [
+  'startGameBtn', 'scoreBtn', 'skipBtn', 'penaltyBtn', 'pauseBtn',
+  'handoffStartBtn', 'endGameBtn', 'resetBtn'
+];
+
+const missingElements = requiredElements.filter(id => !ui[id]);
+if (missingElements.length > 0) {
+  console.error('Missing UI elements:', missingElements);
+  return;
+}
+
 ui.startGameBtn.addEventListener('click', () => {
   const team1Name = ui.team1Name.value.trim() || 'Team 1';
   const team2Name = ui.team2Name.value.trim() || 'Team 2';
@@ -126,6 +138,12 @@ ui.startGameBtn.addEventListener('click', () => {
   // Set cards
   const cards = getAllCards().slice(0, deckSize);
   console.log('Setting cards:', cards.length, 'cards');
+  
+  if (cards.length === 0) {
+    console.error('No cards available to start the game');
+    return;
+  }
+  
   actor.send({ type: 'SET_CARDS', cards });
 
   // Start game
@@ -261,6 +279,8 @@ actor.subscribe((state) => {
 });
 
 // ------- Initialize -------
-loadCardData().then(() => {
-  actor.start();
+document.addEventListener('DOMContentLoaded', () => {
+  loadCardData().then(() => {
+    actor.start();
+  });
 });
