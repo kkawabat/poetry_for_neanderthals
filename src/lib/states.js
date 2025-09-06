@@ -1,7 +1,7 @@
 // XState v5 ESM import from CDN (works in vanilla <script type="module">)
 import { setup, createMachine, fromCallback } from 'https://esm.sh/xstate@5?bundle';
 
-const DEFAULT_SECONDS = 60;
+const DEFAULT_TARGET_POINTS = 10;
 
 // helpers
 const shuffle = (arr) => {
@@ -28,11 +28,11 @@ const guessCard = (ctx) => {
   if (!ctx.currentCardScored) {
     // First click: +1 point, don't move to next card
     const teams = ctx.teams.map((t, idx) => idx === i ? { ...t, score: t.score + 1 } : t);
-    return { ...ctx, teams, currentCardScored: true };
+    return { ...ctx, teams, currentCardScored: true, currentTurnPoints: ctx.currentTurnPoints + 1 };
   } else {
     // Second click: +2 more points, move to next card
     const teams = ctx.teams.map((t, idx) => idx === i ? { ...t, score: t.score + 2 } : t);
-    return { ...ctx, teams, currentCard: null, currentCardScored: false, roundWon: [...ctx.roundWon, card] };
+    return { ...ctx, teams, currentCard: null, currentCardScored: false, roundWon: [...ctx.roundWon, card], currentTurnPoints: ctx.currentTurnPoints + 2 };
   }
 };
 
@@ -53,48 +53,32 @@ const skipCard = (ctx) => {
 const applyPenalty = (ctx) => {
   const i = ctx.currentTeamIndex;
   const teams = ctx.teams.map((t, idx) => idx === i ? { ...t, score: t.score - 1 } : t);
-  return { ...ctx, teams };
+  return { ...ctx, teams, currentTurnPoints: Math.max(0, ctx.currentTurnPoints - 1) };
 };
 
 const nextTeamIndex = (ctx) => (ctx.currentTeamIndex + 1) % ctx.teams.length;
 
-// simple timer actor
-const timerActor = fromCallback(({ input, sendBack }) => {
-  let remaining = input.seconds;
-  
-  sendBack({ type: 'TICK', remaining });
-  
-  const id = setInterval(() => {
-    remaining -= 1;
-    sendBack({ type: 'TICK', remaining });
-    if (remaining <= 0) {
-      clearInterval(id);
-      sendBack({ type: 'TIME_UP' });
-    }
-  }, 1000);
-  
-  return () => clearInterval(id);
-});
 
 export const pfnMachine = setup({
   types: {
     context: /** @type {{
-      teams: {id:string, name:string, score:number}[],
+      teams: {id:string, name:string, score:number, totalTime:number}[],
       allCards: {id:string, word3:string, word1:string}[],
       roundDeck: {id:string, word3:string, word1:string}[],
       roundWon: {id:string, word3:string, word1:string}[],
       currentTeamIndex: number,
       currentCard: {id:string, word3:string, word1:string} | null,
       currentCardScored: boolean,
-      turnSeconds: number,
-      remainingSeconds: number,
+      targetPoints: number,
+      currentTurnPoints: number,
+      turnStartTime: number,
       currentPlayerIndex: number,
       playersPerTeam: number
     }} */ ({}),
     events: /** @type {(
       | { type:'ADD_TEAM', id:string, name:string }
       | { type:'REMOVE_TEAM', id:string }
-      | { type:'SET_SECONDS', seconds:number }
+      | { type:'SET_TARGET_POINTS', targetPoints:number }
       | { type:'SET_CARDS', cards:{id:string, word3:string, word1:string}[] }
       | { type:'START_GAME' }
       | { type:'START_TURN' }
@@ -105,8 +89,6 @@ export const pfnMachine = setup({
       | { type:'TOGGLE_PAUSE' }
       | { type:'NEXT_CARD' }
       | { type:'END_TURN' }
-      | { type:'TICK', remaining:number }
-      | { type:'TIME_UP' }
       | { type:'END_GAME' }
       | { type:'RESET' }
     )} */ ({}),
@@ -118,20 +100,22 @@ export const pfnMachine = setup({
       const totalPlayers = context.teams.length * context.playersPerTeam;
       return context.currentPlayerIndex >= totalPlayers;
     },
+    targetPointsReached: ({ context }) => {
+      return context.currentTurnPoints >= context.targetPoints;
+    },
   },
   actions: {
     addTeam: ({ context, event }) => {
       const e = event;
-      context.teams.push({ id: e.id, name: e.name, score: 0 });
+      context.teams.push({ id: e.id, name: e.name, score: 0, totalTime: 0 });
     },
     removeTeam: ({ context, event }) => {
       const e = event;
       const idx = context.teams.findIndex((t) => t.id === e.id);
       if (idx >= 0) context.teams.splice(idx, 1);
     },
-    setSeconds: ({ context, event }) => {
-      context.turnSeconds = event.seconds;
-      context.remainingSeconds = event.seconds;
+    setTargetPoints: ({ context, event }) => {
+      context.targetPoints = event.targetPoints;
     },
     setCards: ({ context, event }) => {
       context.allCards = event.cards.slice();
@@ -141,6 +125,7 @@ export const pfnMachine = setup({
       context.roundWon = [];
       context.currentCard = null;
       context.currentPlayerIndex = 0;
+      context.currentTurnPoints = 0;
     },
     drawCard: ({ context }) => Object.assign(context, drawNextCard(context)),
     onGuess: ({ context }) => Object.assign(context, guessCard(context)),
@@ -152,8 +137,17 @@ export const pfnMachine = setup({
       // For pass-and-play, simply alternate between teams
       context.currentTeamIndex = (context.currentTeamIndex + 1) % context.teams.length;
     },
-    resetTurnTimer: ({ context }) => { context.remainingSeconds = context.turnSeconds; },
-    updateRemaining: ({ context, event }) => { context.remainingSeconds = event.remaining; },
+    startTurn: ({ context }) => {
+      context.turnStartTime = Date.now();
+      context.currentTurnPoints = 0;
+    },
+    endTurn: ({ context }) => {
+      const turnTime = Date.now() - context.turnStartTime;
+      const currentTeam = context.teams[context.currentTeamIndex];
+      if (currentTeam) {
+        currentTeam.totalTime += turnTime;
+      }
+    },
     shuffleDeckForNextTurn: ({ context }) => {
       // Shuffle the remaining deck before the next player's turn
       context.roundDeck = shuffle(context.roundDeck);
@@ -165,11 +159,12 @@ export const pfnMachine = setup({
       context.currentTeamIndex = 0;
       context.currentPlayerIndex = 0;
       context.currentCard = null;
-      context.remainingSeconds = context.turnSeconds;
+      context.targetPoints = DEFAULT_TARGET_POINTS;
+      context.currentTurnPoints = 0;
+      context.turnStartTime = 0;
       context.playersPerTeam = 2; // Default to 2 players per team
     },
   },
-  actors: { turnTimer: timerActor },
 }).createMachine({
   id: 'pfn',
   initial: 'lobby',
@@ -181,8 +176,9 @@ export const pfnMachine = setup({
       currentTeamIndex: 0,
       currentCard: null,
       currentCardScored: false,
-      turnSeconds: DEFAULT_SECONDS,
-      remainingSeconds: DEFAULT_SECONDS,
+      targetPoints: DEFAULT_TARGET_POINTS,
+      currentTurnPoints: 0,
+      turnStartTime: 0,
       currentPlayerIndex: 0,
       playersPerTeam: 2,
       isPaused: false,
@@ -192,12 +188,12 @@ export const pfnMachine = setup({
       on: {
         ADD_TEAM: { actions: 'addTeam' },
         REMOVE_TEAM: { actions: 'removeTeam' },
-        SET_SECONDS: { actions: 'setSeconds' },
+        SET_TARGET_POINTS: { actions: 'setTargetPoints' },
         SET_CARDS: { actions: 'setCards' },
         START_GAME: {
             // Jump directly into the first turn for pass-and-play
             target: 'turn.prepare',
-            actions: ['initRoundDeck', 'resetTurnTimer'],
+            actions: ['initRoundDeck'],
             guard: ({ context }) =>
             context.teams.length >= 2 && context.allCards.length > 0,
         },
@@ -207,20 +203,12 @@ export const pfnMachine = setup({
       initial: 'prepare',
       states: {
         prepare: {
-          entry: ['shuffleDeckForNextTurn', 'drawCard', 'resetTurnTimer'],
+          entry: ['shuffleDeckForNextTurn', 'drawCard', 'startTurn'],
           always: { target: 'playing' },
         },
         
         playing: {
-          invoke: { 
-            src: 'turnTimer', 
-            input: ({ context }) => ({ 
-              seconds: context.remainingSeconds
-            }) 
-          },
           on: {
-            TICK: { actions: 'updateRemaining' },
-            TIME_UP: { actions: ['onSkip', 'drawCard'], target: 'turnEnd' },
             NEXT_CARD: { actions: 'drawCard' },
             GUESS_1: [{ actions: ['onGuess', 'drawCard'] }],
             SKIP: { actions: ['onSkip', 'drawCard'] },
@@ -231,7 +219,10 @@ export const pfnMachine = setup({
             },
             END_TURN: { target: 'turnEnd' },
           },
-          always: { guard: 'roundDeckEmpty', target: 'turnEnd' },
+          always: [
+            { guard: 'roundDeckEmpty', target: 'turnEnd' },
+            { guard: 'targetPointsReached', actions: 'endTurn', target: 'turnEnd' }
+          ],
         },
         
         paused: {
@@ -246,7 +237,7 @@ export const pfnMachine = setup({
         
         // when a turn ends, switch to next team
         turnEnd: {
-          entry: ['nextPlayer', 'shuffleDeckForNextTurn'],
+          entry: ['endTurn', 'nextPlayer', 'shuffleDeckForNextTurn'],
           always: { target: 'handoff' },
         },
         

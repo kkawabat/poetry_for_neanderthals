@@ -295,11 +295,9 @@
       </div>
       
       <div class="row">
-        <label>Turn Time (seconds):</label>
-        <input type="number" id="secondsInput" value="60" min="30" max="120" />
+        <label>Target Points per Turn:</label>
+        <input type="number" id="targetPointsInput" value="10" min="5" max="30" />
       </div>
-      
-
       
       <div class="row">
         <label>Deck Size:</label>
@@ -312,7 +310,9 @@
           <li>Each turn one poet describes the item to their teammates using only 1 syllable words</li>
           <li>Each card has a 3-point item and a 1-point item</li>
           <li>If the poet uses a non-one syllable word their team gets a 1-point penalty</li>
-          <li>The team with the most points wins!</li>
+          <li>Teams take turns until they reach the target points, then switch</li>
+          <li>The time taken to reach target points becomes the team's score</li>
+          <li>The team with the lowest total time wins!</li>
         </ul>
       </div>
       
@@ -337,7 +337,7 @@
           </div>
         </div>
         
-        <div class="timer" id="timer">60</div>
+        <div class="timer" id="timer">0 / 10</div>
         <div class="muted">Cards remaining: <span id="deckCount">0</span></div>
       </div>
       
