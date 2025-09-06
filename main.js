@@ -179,19 +179,74 @@ const formatTime = (ms) => {
   return minutes > 0 ? `${minutes}:${remainingSeconds.toString().padStart(2, '0')}` : `${seconds}s`;
 };
 
+// Live timer for updating team scores during turns
+let liveTimerInterval = null;
+let currentContext = null;
+
+const startLiveTimer = (context) => {
+  if (liveTimerInterval) {
+    clearInterval(liveTimerInterval);
+  }
+  
+  currentContext = context;
+  
+  liveTimerInterval = setInterval(() => {
+    if (currentContext && currentContext.turnStartTime > 0) {
+      const currentTime = Date.now();
+      const currentTurnElapsed = currentTime - currentContext.turnStartTime;
+      
+      // Update team scores with live time
+      if (currentContext.teams.length >= 1) {
+        const team1TotalTime = currentContext.teams[0].totalTime + (currentContext.currentTeamIndex === 0 ? currentTurnElapsed : 0);
+        ui.team1Score.textContent = formatTime(team1TotalTime);
+      }
+      if (currentContext.teams.length >= 2) {
+        const team2TotalTime = currentContext.teams[1].totalTime + (currentContext.currentTeamIndex === 1 ? currentTurnElapsed : 0);
+        ui.team2Score.textContent = formatTime(team2TotalTime);
+      }
+    }
+  }, 100); // Update every 100ms for smooth display
+};
+
+const stopLiveTimer = () => {
+  if (liveTimerInterval) {
+    clearInterval(liveTimerInterval);
+    liveTimerInterval = null;
+    currentContext = null;
+  }
+};
+
 // ------- State subscriptions -------
 actor.subscribe((state) => {
   const { context, value } = state;
   console.log('State changed:', { value, teams: context.teams.length, cards: context.allCards.length, valueType: typeof value, currentTurnPoints: context.currentTurnPoints, targetPoints: context.targetPoints });
   
-  // Update team displays
+  // Start/stop live timer based on game state
+  const isPlaying = typeof value === 'object' && value.turn === 'playing';
+  if (isPlaying && context.turnStartTime > 0) {
+    startLiveTimer(context);
+  } else {
+    stopLiveTimer();
+  }
+  
+  // Update team displays (only when not playing to avoid conflicts with live timer)
+  if (!isPlaying) {
+    if (context.teams.length >= 1) {
+      ui.team1NameDisplay.textContent = context.teams[0].name;
+      ui.team1Score.textContent = formatTime(context.teams[0].totalTime);
+    }
+    if (context.teams.length >= 2) {
+      ui.team2NameDisplay.textContent = context.teams[1].name;
+      ui.team2Score.textContent = formatTime(context.teams[1].totalTime);
+    }
+  }
+  
+  // Always update team names
   if (context.teams.length >= 1) {
     ui.team1NameDisplay.textContent = context.teams[0].name;
-    ui.team1Score.textContent = formatTime(context.teams[0].totalTime);
   }
   if (context.teams.length >= 2) {
     ui.team2NameDisplay.textContent = context.teams[1].name;
-    ui.team2Score.textContent = formatTime(context.teams[1].totalTime);
   }
 
   // Update current team highlighting
