@@ -68,7 +68,7 @@ const ui = {
   viewLobby: $('#viewLobby'),
   team1Name: $('#team1Name'),
   team2Name: $('#team2Name'),
-  secondsInput: $('#secondsInput'),
+  targetPointsInput: $('#targetPointsInput'),
   deckSizeInput: $('#deckSizeInput'),
   startGameBtn: $('#startGameBtn'),
 
@@ -112,17 +112,17 @@ function initializeEventHandlers() {
   ui.startGameBtn.addEventListener('click', () => {
   const team1Name = ui.team1Name.value.trim() || 'Team 1';
   const team2Name = ui.team2Name.value.trim() || 'Team 2';
-  const seconds = parseInt(ui.secondsInput.value) || 60;
+  const targetPoints = parseInt(ui.targetPointsInput.value) || 10;
   const deckSize = parseInt(ui.deckSizeInput.value) || 20;
 
-  console.log('Starting game with:', { team1Name, team2Name, seconds, deckSize });
+  console.log('Starting game with:', { team1Name, team2Name, targetPoints, deckSize });
 
   // Add teams
   actor.send({ type: 'ADD_TEAM', id: 'team1', name: team1Name });
   actor.send({ type: 'ADD_TEAM', id: 'team2', name: team2Name });
 
   // Set game settings
-  actor.send({ type: 'SET_SECONDS', seconds });
+  actor.send({ type: 'SET_TARGET_POINTS', targetPoints });
 
   // Set cards
   const cards = getAllCards().slice(0, deckSize);
@@ -171,27 +171,35 @@ ui.resetBtn.addEventListener('click', () => {
 });
 }
 
+// ------- Utility functions -------
+const formatTime = (ms) => {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return minutes > 0 ? `${minutes}:${remainingSeconds.toString().padStart(2, '0')}` : `${seconds}s`;
+};
+
 // ------- State subscriptions -------
 actor.subscribe((state) => {
   const { context, value } = state;
-  console.log('State changed:', { value, teams: context.teams.length, cards: context.allCards.length, valueType: typeof value, remainingSeconds: context.remainingSeconds });
+  console.log('State changed:', { value, teams: context.teams.length, cards: context.allCards.length, valueType: typeof value, currentTurnPoints: context.currentTurnPoints, targetPoints: context.targetPoints });
   
   // Update team displays
   if (context.teams.length >= 1) {
     ui.team1NameDisplay.textContent = context.teams[0].name;
-    ui.team1Score.textContent = context.teams[0].score;
+    ui.team1Score.textContent = formatTime(context.teams[0].totalTime);
   }
   if (context.teams.length >= 2) {
     ui.team2NameDisplay.textContent = context.teams[1].name;
-    ui.team2Score.textContent = context.teams[1].score;
+    ui.team2Score.textContent = formatTime(context.teams[1].totalTime);
   }
 
   // Update current team highlighting
   ui.team1Card.classList.toggle('current', context.currentTeamIndex === 0);
   ui.team2Card.classList.toggle('current', context.currentTeamIndex === 1);
 
-  // Update timer
-  ui.timer.textContent = context.remainingSeconds;
+  // Update progress display
+  ui.timer.textContent = `${context.currentTurnPoints} / ${context.targetPoints}`;
 
   // Update deck count
   const totalCards = context.roundDeck.length + (context.currentCard ? 1 : 0);
@@ -231,17 +239,17 @@ actor.subscribe((state) => {
   if (context.teams.length >= 2) {
     const team1 = context.teams[0];
     const team2 = context.teams[1];
-    const winner = team1.score > team2.score ? team1 : team2;
+    const winner = team1.totalTime < team2.totalTime ? team1 : team2;
     
     ui.finalScores.innerHTML = `
       <div class="scores">
         <div class="team-card">
           <div>${team1.name}</div>
-          <div class="team-score">${team1.score} points</div>
+          <div class="team-score">${formatTime(team1.totalTime)}</div>
         </div>
         <div class="team-card">
           <div>${team2.name}</div>
-          <div class="team-score">${team2.score} points</div>
+          <div class="team-score">${formatTime(team2.totalTime)}</div>
         </div>
       </div>
       <h3>${winner.name} wins!</h3>
